@@ -16,8 +16,6 @@ WIDTH_MAX_MS = 180.0  # maximum FWHM width (camera spikes are narrow)
 RISE_MIN     = 0.15    # minimum rise slope (diff units per ms)
 FALL_MIN     = 0.15   # minimum fall slope magnitude
 
-# t_ms,peak_value,baseline,height,width_ms,rise_slope,fall_slope,is_lens_like
-# 13943.0,28.0,14.0,14.0,161.0,0.23333333333333334,-0.13861386138613863,False
 # -------------------------------------------------------------------
 # LOAD DATA
 # -------------------------------------------------------------------

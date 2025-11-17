@@ -30,4 +30,6 @@ For prototyping, I'm using:
 * a photodiode as a receiver
 * a 2222A transistor
 
+![](basicsetup.jpg)
+
 I've found from reading a bunch of stuff that different wavelengths might work better, so I'm on the hunt for those.
