@@ -12,11 +12,13 @@ To my dissapointment, this isn't exactly a new idea. Some researchers in 2005 us
 There's even some recent research (2024) that figured out how to classify individual cameras based on their retro-reflections.
 * https://opg.optica.org/oe/fulltext.cfm?uri=oe-32-8-13836
 
-Now we have a similar situation on our hands, where smart glasses with hidden cameras seem to be getting pushed by marketing teams. So I want to create a pair of glasses to identify these. Unfortunately, from what I can tell most of the existing research in this space records data with a camera and then uses ML, a ton of controlled angles, etc. to differentiate between normal reflective surfaces and cameras. 
+Now we have a similar situation to those 2005 researchers on our hands, where smart glasses with hidden cameras seem to be getting more popular. So I want to create a pair of glasses to identify these. Unfortunately, from what I can tell most of the existing research in this space records data with a camera and then uses ML, a ton of controlled angles, etc. to differentiate between normal reflective surfaces and cameras. 
 
 I would feel pretty silly if my solution uses its own camera. So I'll be avoiding that. Instead I think it's likely I'll have to rely on being consistent with my 'sweeps', and creating a good classifier based on signal data. For example you can see here that the back camera on my smartphone seems to produce quick and large spikes, while the glossy screen creates a more prolonged wave.
 
 ![](ts_plot_labeled.png)
+
+![](ts_plot_spikes.png)
 
 ## Circuit
 
