@@ -1,8 +1,11 @@
 # Ban-Rays
 **Glasses that detect hidden cameras in other smart glasses**
 
+I'm planning to use 2 main approaches: optics and networking
+* With optics, the goal will be to classify all cameras by looking at light reflections.
+* With networking, I'll likely be looking for specific, hardcoded identifiers for relevant products in bluetooth packets. 
 
-## Some background
+## Optics
 
 By sending IR at camera lenses, we can take advantage of the fact that the CMOS sensor in a camera reflects light directly back at the source (called 'retro-reflectivity' / 'cat-eye effect') to identify cameras.
 
@@ -22,7 +25,7 @@ I would feel pretty silly if my solution uses its own camera. So I'll be avoidin
 
 Right now the spike / camera-like detection is super dependent on the consistensy of 'scans'. If you looks across a reflective object quickly, the slope might be enough to classify as a small camera spike.
 
-## Circuit
+### Circuit
 
 For prototyping, I'm using:
 * Arduino uno
@@ -33,3 +36,7 @@ For prototyping, I'm using:
 ![](basicsetup.jpg)
 
 I've found from reading a bunch of stuff that different wavelengths might work better, so I'm on the hunt for those.
+
+## Networking
+
+haven't started this yet. I'll likely be using a nano esp32 to search for certain identifiers for specific products/manufacturers in bluetooth packets. I still have to play around with this.. First though I need to actually get a pair of meta raybans to test with and see what the identifiers might look like. 
