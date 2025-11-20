@@ -25,18 +25,44 @@ I would feel pretty silly if my solution uses its own camera. So I'll be avoidin
 
 Right now the spike / camera-like detection is super dependent on the consistensy of 'scans'. If you looks across a reflective object quickly, the slope might be enough to classify as a small camera spike.
 
-### Circuit
+### IR Circuit
 
 For prototyping, I'm using:
 * Arduino uno
-* a bunch of 940nm IR LEDs
+* a bunch of 940nm and 850nm IR LEDs (the 850nm ones appear to reflect much more) 
 * a photodiode as a receiver
 * a 2222A transistor
 
 ![](basicsetup.jpg)
 
-I've found from reading a bunch of stuff that different wavelengths might work better, so I'm on the hunt for those.
+I still need to experiment with how different wavelengths effect results here.
 
 ## Networking
 
-haven't started this yet. I'll likely be using a nano esp32 to search for certain identifiers for specific products/manufacturers in bluetooth packets. I still have to play around with this.. First though I need to actually get a pair of meta raybans to test with and see what the identifiers might look like. 
+This has been more tricky than I first thought! My current approach here is to fingerprint the Meta Raybans over Bluetooth low-energy (BLE).
+When put into pairing mode, I can detect the device through advertised manufacturer data (and the device names gets broadcast too for UX). The `0x01AB` is a Meta-specific SIG-assigned ID (assigned by the Bluetooth standards body).
+```
+Detection Method: MANUFACTURER ID
+Device: RB Meta 00Y7
+MAC: XX:XX:XX:XX:XX:XX
+RSSI: -61
+Mfg Data: AB 01 02 01 03 8E 2A 87 F3 08 B9 01
+Company ID: 0x01AB (Meta Platforms, Inc.)
+```
+IEEE assigns certain MAC address prefixes (OUI, 'Organizationally Unique Identifier'), but devices tend to randomize the addresses, so this might not be very useful. (NOTE: I might be misunderstanding something here)
+
+There are also SIG Assigned Service UUIDs, and using nRF Connect (android app) I noticed that there's a service under 0xFD5F, which is assigned to Meta. This is probably a proprietary service. Maybe useful.
+
+I'm still trying to figuring out how to fingerprint the device while in typical use (and not in pairing mode)
+
+Here's some links to more data if you're curious:
+* https://bitbucket.org/bluetooth-SIG/public/raw/adafcaea89c1469380268723c1e79ef8c84c53e9/assigned_numbers/company_identifiers/company_identifiers.yaml
+* https://gitlab.com/wireshark/wireshark/-/blob/99df5f588b38cc0964f998a6a292e81c7dcf0800/epan/dissectors/packet-bluetooth.c
+* https://www.netify.ai/resources/macs/brands/meta
+
+
+TO TRY: filtering by rssi strength with wireshark to try and isolate the raybans while in use. also active probing.
+
+---
+
+Thanks to Trevor Seets and Junming Chen for their advice in optics and BLE (respectively). Also to Sohail for lending me meta raybans to test with. 

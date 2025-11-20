@@ -5,6 +5,11 @@ PORT = "COM5"
 BAUD = 115200
 OUTFILE = "ir_log.csv"
 
+# FOR BT
+# PORT = "COM7"
+# BAUD = 115200
+# OUTFILE = "bt_log.txt"
+
 def main():
     ser = serial.Serial(PORT, BAUD, timeout=1)
     time.sleep(2)
@@ -13,7 +18,7 @@ def main():
     print(f"Saving to {OUTFILE}")
     print("Press Ctrl+C to stop.\n")
 
-    with open(OUTFILE, "w", encoding="utf-8") as f:
+    with open(f"./logs/{OUTFILE}", "w", encoding="utf-8") as f:
         while True:
             try:
                 line = ser.readline().decode("utf-8", errors="ignore").strip()

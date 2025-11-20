@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-CSV_FILE = "ir_log.csv"
+CSV_FILE = "./logs/ir_log.csv"
 
 def main():
     df = pd.read_csv(CSV_FILE)

@@ -8,7 +8,7 @@ from scipy.signal import find_peaks
 # -------------------------------------------------------------------
 # CONFIG
 # -------------------------------------------------------------------
-CSV_FILE = "ir_log.csv"  # your logged data (columns: ms, diff)
+CSV_FILE = "./logs/ir_log.csv"  # your logged data (columns: ms, diff)
 
 # Heuristic thresholds (tune these!)
 HEIGHT_MIN   = 10.0   # minimum height above local baseline to count as "strong"
@@ -100,7 +100,7 @@ print("\n=== Peak features ===")
 print(peaks_df)
 
 # Save for inspection / tweaking
-peaks_df.to_csv("detected_peaks_simple.csv", index=False)
+peaks_df.to_csv("./logs/detected_peaks_simple.csv", index=False)
 
 
 # -------------------------------------------------------------------
