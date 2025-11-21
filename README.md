@@ -39,29 +39,40 @@ I still need to experiment with how different wavelengths effect results here.
 
 ## Networking
 
-This has been more tricky than I first thought! My current approach here is to fingerprint the Meta Raybans over Bluetooth low-energy (BLE).
-When put into pairing mode, I can detect the device through advertised manufacturer data (and the device names gets broadcast too for UX). The `0x01AB` is a Meta-specific SIG-assigned ID (assigned by the Bluetooth standards body).
-```
-Detection Method: MANUFACTURER ID
-Device: RB Meta 00Y7
-MAC: XX:XX:XX:XX:XX:XX
-RSSI: -61
-Mfg Data: AB 01 02 01 03 8E 2A 87 F3 08 B9 01
-Company ID: 0x01AB (Meta Platforms, Inc.)
-```
-IEEE assigns certain MAC address prefixes (OUI, 'Organizationally Unique Identifier'), but devices tend to randomize the addresses, so this might not be very useful. (NOTE: I might be misunderstanding something here)
+This has been more tricky than I first thought! My current approach here is to fingerprint the Meta Raybans over Bluetooth low-energy (BLE) advertisements. But, **I have only been able to detect BLE traffic during 1) pairing 2) powering-on**. The goal is to detect them during usage when they're communicating with the paired phone, but that all seems to be happening over bluetooth classic. And unfortunately the hardware to monitor for ongoing bluetooth classic traffic seems a bit more involved (read: expensive). So I'll likely need a more clever solution here (let me know if you have any).
 
-There are also SIG Assigned Service UUIDs, and using nRF Connect (android app) I noticed that there's a service under 0xFD5F, which is assigned to Meta. This is probably a proprietary service. Maybe useful.
+When turned on or put into pairing mode, I can detect the device through advertised manufacturer data. The `0x01AB` is a Meta-specific SIG-assigned ID (assigned by the Bluetooth standards body).
 
-I'm still trying to figuring out how to fingerprint the device while in typical use (and not in pairing mode)
+capture when the glasses are powered on:
+```
+[01:07:06] RSSI: -59 dBm
+Address: XX:XX:XX:XX:XX:XX
+Name: Unknown
+
+META/LUXOTTICA DEVICE DETECTED!
+  Manufacturer: Meta (0x01AB)
+  Service UUID: Meta (0xFD5F) (0000fd5f-0000-1000-8000-00805f9b34fb)
+
+Manufacturer Data:
+  Company ID: Meta (0x01AB)
+  Data: 020102102716e4
+
+Service UUIDs: ['0000fd5f-0000-1000-8000-00805f9b34fb']
+```
+
+IEEE assigns certain MAC address prefixes (OUI, 'Organizationally Unique Identifier'), but these addresses get randomized so I don't expect them to be super useful for BLE.
+
+There are also SIG Assigned Service UUIDs, for examplel 0xFD5F is assigned to Meta. This is probably a proprietary service. Maybe useful.
 
 Here's some links to more data if you're curious:
-* https://bitbucket.org/bluetooth-SIG/public/raw/adafcaea89c1469380268723c1e79ef8c84c53e9/assigned_numbers/company_identifiers/company_identifiers.yaml
+* https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/Assigned_Numbers.pdf
 * https://gitlab.com/wireshark/wireshark/-/blob/99df5f588b38cc0964f998a6a292e81c7dcf0800/epan/dissectors/packet-bluetooth.c
 * https://www.netify.ai/resources/macs/brands/meta
 
 
-TO TRY: filtering by rssi strength with wireshark to try and isolate the raybans while in use. also active probing.
+TODO:
+* Read: https://dl.acm.org/doi/10.1145/3548606.3559372
+* try active probing/interrogating
 
 ---
 

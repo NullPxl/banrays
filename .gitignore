@@ -1,1 +1,4 @@
 logs/bt_log*.txt
+bt_monitor/scratch.txt
+bt_monitor/rayban_ble_log.txt
+.vscode/

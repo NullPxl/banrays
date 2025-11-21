@@ -3,220 +3,303 @@
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
 
-int scanTime = 5;
+// ========== CONFIGURATION ==========
+const int RSSI_THRESHOLD = -150;        // Only show devices stronger than this
+const int DETECTION_PIN = 13;
+const int SCAN_TIME = 5;               // Scan duration in seconds
+
+// Meta and Luxottica company identifiers
+const uint16_t META_IDENTIFIERS[] = {
+  0xFD5F,  // Meta (0xFD5F)
+  0xFEB7,  // Meta (0xFEB7)
+  0xFEB8,  // Meta (0xFEB8)
+  0x01AB,  // Meta (0x01AB)
+  0x058E,  // Meta (0x058E)
+  0x0D53   // Luxottica (0x0D53)
+};
+const int META_ID_COUNT = 6;
+
+// MAC addresses are randomized, so not checking OUI here (maybe do it for BTC)
+    // mac.rfind("48:05:60", 0) == 0 ||
+    // mac.rfind("CC:A1:74", 0) == 0 ||
+    // mac.rfind("C0:DD:8A", 0) == 0 ||
+    // mac.rfind("D0:B3:C2", 0) == 0 ||
+    // mac.rfind("88:25:08", 0) == 0 ||
+    // mac.rfind("94:F9:29", 0) == 0 ||
+    // mac.rfind("D4:D6:59", 0) == 0 ||
+    // mac.rfind("78:C4:FA", 0) == 0 ||
+    // mac.rfind("B4:17:A8", 0) == 0 ||
+    // mac.rfind("50:99:03", 0) == 0 ||
+    // mac.rfind("80:F3:EF", 0) == 0 ||
+    // mac.rfind("84:57:F7", 0) == 0 ||
+    // mac.rfind("3C:28:6D", 0) == 0 ||
+    // mac.rfind("AC:37:43", 0) == 0 ||
+    // // Luxottica
+    // mac.rfind("98:59:49", 0) == 0
+
+// Identifiers to filter out (from local test setup)
+const uint16_t BLOCKED_IDENTIFIERS[] = {
+  0xFD5A,  // Samsung
+  0xFD69,   // Samsung
+  0x004C, //apple
+  0x0006, // microsoft
+  0xFEF3, // phone
+};
+const int BLOCKED_ID_COUNT = 5;
+
+// ========== GLOBALS ==========
 BLEScan* pBLEScan;
+unsigned long sessionStartTime = 0;
 
-bool metaFound = false;
-unsigned long firstDetectionTime = 0;
+// ========== DETECTION RESULT STRUCT ==========
+struct DetectionResult {
+  bool isBlocked;
+  bool isMetaDevice;
+  String matches[10];  // Store up to 10 match descriptions
+  int matchCount;
+};
 
-// Uppercase helper
-void toUpper(std::string &s) {
-  for (auto &c : s) c = toupper(c);
+// ========== HELPER FUNCTIONS ==========
+
+String getCompanyName(uint16_t companyId) {
+  switch(companyId) {
+    case 0xFD5F: return "Meta (0xFD5F)";
+    case 0xFEB7: return "Meta (0xFEB7)";
+    case 0xFEB8: return "Meta (0xFEB8)";
+    case 0x01AB: return "Meta (0x01AB)";
+    case 0x058E: return "Meta (0x058E)";
+    case 0x0D53: return "Luxottica (0x0D53)";
+    default: {
+      char buf[32];
+      sprintf(buf, "Unknown (0x%04X)", companyId);
+      return String(buf);
+    }
+  }
 }
 
-// ---- MANUFACTURER ID DETECTION (BEST SIGNAL) ----
-bool isMetaOrLuxotticaManufacturer(BLEAdvertisedDevice& dev) {
-  if (!dev.haveManufacturerData()) return false;
-
-  std::string m = dev.getManufacturerData();
-  if (m.length() < 2) return false;
-
-  // BLE manufacturer data is little-endian
-  uint16_t company = ((uint8_t)m[1] << 8) | (uint8_t)m[0];
-
-  return (
-    company == 0x01AB ||   // Meta Platforms, Inc.
-    company == 0x058E ||   // Meta Platforms Technologies, LLC
-    company == 0x0D53      // Luxottica Group S.p.A.
-  );
+bool isMetaIdentifier(uint16_t id) {
+  for(int i = 0; i < META_ID_COUNT; i++) {
+    if(META_IDENTIFIERS[i] == id) return true;
+  }
+  return false;
 }
 
-// ---- OUI (MAC PREFIX) DETECTION ----
-bool isMetaOrLuxotticaOUI(BLEAdvertisedDevice& dev) {
-  std::string mac = dev.getAddress().toString();
-  toUpper(mac);
-
-  return (
-    // Meta/Facebook OUIs
-    mac.rfind("48:05:60", 0) == 0 ||
-    mac.rfind("CC:A1:74", 0) == 0 ||
-    mac.rfind("C0:DD:8A", 0) == 0 ||
-    mac.rfind("D0:B3:C2", 0) == 0 ||
-    mac.rfind("88:25:08", 0) == 0 ||
-    mac.rfind("94:F9:29", 0) == 0 ||
-    mac.rfind("D4:D6:59", 0) == 0 ||
-    mac.rfind("78:C4:FA", 0) == 0 ||
-    mac.rfind("B4:17:A8", 0) == 0 ||
-    mac.rfind("50:99:03", 0) == 0 ||
-    mac.rfind("80:F3:EF", 0) == 0 ||
-    mac.rfind("84:57:F7", 0) == 0 ||
-    mac.rfind("3C:28:6D", 0) == 0 ||  // Meta Platforms
-    mac.rfind("AC:37:43", 0) == 0 ||  // Facebook/Meta
-    // Luxottica
-    mac.rfind("98:59:49", 0) == 0
-  );
+bool isBlockedIdentifier(uint16_t id) {
+  for(int i = 0; i < BLOCKED_ID_COUNT; i++) {
+    if(BLOCKED_IDENTIFIERS[i] == id) return true;
+  }
+  return false;
 }
 
-// ---- CALLBACK ----
-class PrintAllCallbacks : public BLEAdvertisedDeviceCallbacks {
-  void onResult(BLEAdvertisedDevice dev) {
+String formatTimestamp() {
+  unsigned long ms = millis() - sessionStartTime;
+  unsigned long seconds = ms / 1000;
+  unsigned long minutes = seconds / 60;
+  unsigned long hours = minutes / 60;
+  
+  char buf[16];
+  sprintf(buf, "%02lu:%02lu:%02lu", hours % 24, minutes % 60, seconds % 60);
+  return String(buf);
+}
 
-    // Meta/Luxottica DETECTION
-    bool mfgMatch = isMetaOrLuxotticaManufacturer(dev);
-    bool ouiMatch = isMetaOrLuxotticaOUI(dev);
-    
-    if (mfgMatch || ouiMatch) {
-      if (!metaFound) {
-        Serial.println("\n!!! META / LUXOTTICA DEVICE DETECTED !!!");
-        Serial.print("    Detection Method: ");
-        if (mfgMatch) Serial.print("MANUFACTURER ID ");
-        if (mfgMatch && ouiMatch) Serial.print("+ ");
-        if (ouiMatch) Serial.print("MAC OUI");
-        Serial.println();
-        
-        Serial.print("    Device: ");
-        Serial.println(dev.haveName() ? dev.getName().c_str() : "(unnamed)");
-        Serial.print("    MAC: ");
-        Serial.println(dev.getAddress().toString().c_str());
-        Serial.print("    RSSI: ");
-        Serial.println(dev.getRSSI());
-        
-        // Show manufacturer data if it was the trigger
-        if (mfgMatch && dev.haveManufacturerData()) {
-          std::string mfg = dev.getManufacturerData();
-          Serial.print("    Mfg Data: ");
-          for (size_t i = 0; i < mfg.length(); i++) {
-            Serial.printf("%02X ", (uint8_t)mfg[i]);
-          }
-          Serial.println();
-          
-          if (mfg.length() >= 2) {
-            uint16_t company = ((uint8_t)mfg[1] << 8) | (uint8_t)mfg[0];
-            Serial.printf("    Company ID: 0x%04X", company);
-            if (company == 0x01AB) Serial.print(" (Meta Platforms, Inc.)");
-            else if (company == 0x058E) Serial.print(" (Meta Platforms Technologies, LLC)");
-            else if (company == 0x0D53) Serial.print(" (Luxottica Group S.p.A.)");
-            Serial.println();
-          }
-        }
-        
-        Serial.println("    => MUTING OTHER DEVICE OUTPUT\n");
-        
-        metaFound = true;
-        firstDetectionTime = millis();
-      }
-      return;
-    }
+String hexString(uint8_t* data, size_t len) {
+  String result = "";
+  for(size_t i = 0; i < len; i++) {
+    char buf[4];
+    sprintf(buf, "%02x", data[i]);
+    result += buf;
+  }
+  return result;
+}
 
-    if (metaFound) return;
+// Extract 16-bit identifier from 128-bit UUID (format: 0000XXXX-0000-1000-8000-00805f9b34fb)
+uint16_t extract16BitFromUUID(String uuid) {
+  if(uuid.length() == 36) {
+    // Extract characters at positions 4-7 (the XXXX part)
+    String hex = uuid.substring(4, 8);
+    return (uint16_t)strtol(hex.c_str(), NULL, 16);
+  }
+  return 0;
+}
 
-    // ---- PRINT EVERYTHING ----
-    Serial.println("----- BLE DEVICE FOUND -----");
+// ========== DETECTION LOGIC ==========
 
-    // Name
-    Serial.print("Name: ");
-    if (dev.haveName()) Serial.println(dev.getName().c_str());
-    else Serial.println("(no name)");
-
-    // Device
-    Serial.print("Device: ");
-    Serial.println(dev.haveName() ? dev.getName().c_str() : "(unnamed)");
-
-    // MAC
-    Serial.print("MAC: ");
-    Serial.println(dev.getAddress().toString().c_str());
-
-    // RSSI
-    Serial.print("RSSI: ");
-    Serial.println(dev.getRSSI());
-
-    // TX Power
-    if (dev.haveTXPower()) {
-      Serial.print("TX Power: ");
-      Serial.println(dev.getTXPower());
-    }
-
-    // Service UUID
-    if (dev.haveServiceUUID()) {
-      Serial.print("Service UUID: ");
-      Serial.println(dev.getServiceUUID().toString().c_str());
-    }
-
-    // Service Data
-    if (dev.haveServiceData()) {
-      Serial.print("Service Data UUID: ");
-      Serial.println(dev.getServiceDataUUID().toString().c_str());
-
-      std::string sdata = dev.getServiceData();
-      Serial.print("Service Data: ");
-      for (size_t i = 0; i < sdata.length(); i++) {
-        Serial.printf("%02X ", (uint8_t)sdata[i]);
-      }
-      Serial.println();
-    }
-
-    // Manufacturer Data
-    if (dev.haveManufacturerData()) {
-      std::string mfg = dev.getManufacturerData();
-      Serial.print("Manufacturer Data: ");
-      for (size_t i = 0; i < mfg.length(); i++) {
-        Serial.printf("%02X ", (uint8_t)mfg[i]);
-      }
-      Serial.println();
+DetectionResult checkDevice(BLEAdvertisedDevice& device) {
+  DetectionResult result = {false, false, {}, 0};
+  
+  // Check manufacturer data
+  if(device.haveManufacturerData()) {
+    std::string mfgData = device.getManufacturerData();
+    if(mfgData.length() >= 2) {
+      // Little-endian: first byte is LSB, second is MSB
+      uint16_t companyId = ((uint8_t)mfgData[1] << 8) | (uint8_t)mfgData[0];
       
-      // Decode company ID for debugging
-      if (mfg.length() >= 2) {
-        uint16_t company = ((uint8_t)mfg[1] << 8) | (uint8_t)mfg[0];
-        Serial.printf("  (Company ID: 0x%04X)\n", company);
+      if(isBlockedIdentifier(companyId)) {
+        result.isBlocked = true;
+        return result;
+      }
+      
+      if(isMetaIdentifier(companyId)) {
+        result.isMetaDevice = true;
+        result.matches[result.matchCount++] = "Manufacturer: " + getCompanyName(companyId);
       }
     }
-
-    // Raw payload
-    uint8_t* payload = dev.getPayload();
-    int len = dev.getPayloadLength();
-
-    Serial.print("Raw Payload: ");
-    if (payload && len > 0) {
-      for (int i = 0; i < len; i++) Serial.printf("%02X ", payload[i]);
-    } else {
-      Serial.print("(none)");
+  }
+  
+  // Check service UUIDs
+  if(device.haveServiceUUID()) {
+    BLEUUID serviceUUID = device.getServiceUUID();
+    String uuidStr = String(serviceUUID.toString().c_str());
+    uuidStr.toLowerCase();
+    
+    uint16_t identifier = extract16BitFromUUID(uuidStr);
+    if(identifier != 0) {
+      if(isBlockedIdentifier(identifier)) {
+        result.isBlocked = true;
+        return result;
+      }
+      
+      if(isMetaIdentifier(identifier)) {
+        result.isMetaDevice = true;
+        result.matches[result.matchCount++] = "Service UUID: " + getCompanyName(identifier) + " (" + uuidStr + ")";
+      }
     }
-    Serial.println();
+  }
+  
+  return result;
+}
 
-    Serial.println("-----------------------------------\n");
+// ========== BLE CALLBACK ==========
+
+class MetaDetectionCallbacks : public BLEAdvertisedDeviceCallbacks {
+  void onResult(BLEAdvertisedDevice device) {
+    // Filter by RSSI
+    if(device.getRSSI() < RSSI_THRESHOLD) return;
+    
+    // Check for Meta/Luxottica identifiers
+    DetectionResult detection = checkDevice(device);
+    
+    // Skip blocked devices
+    if(detection.isBlocked) return;
+    
+    // Build output
+    String output = "\n";
+    output += "======================================================================\n";
+    output += "[" + formatTimestamp() + "] RSSI: " + String(device.getRSSI()) + " dBm\n";
+    output += "Address: " + String(device.getAddress().toString().c_str()) + "\n";
+    output += "Name: " + String(device.haveName() ? device.getName().c_str() : "Unknown") + "\n";
+    
+    // Highlight Meta/Luxottica devices
+    if(detection.isMetaDevice) {
+      output += "\n🔍 META/LUXOTTICA DEVICE DETECTED!\n";
+      for(int i = 0; i < detection.matchCount; i++) {
+        output += "  ✓ " + detection.matches[i] + "\n";
+      }
+      
+      // Set detection pin HIGH
+      digitalWrite(DETECTION_PIN, HIGH);
+    }
+    
+    // Print manufacturer data
+    if(device.haveManufacturerData()) {
+      std::string mfgData = device.getManufacturerData();
+      output += "\nManufacturer Data:\n";
+      
+      if(mfgData.length() >= 2) {
+        uint16_t companyId = ((uint8_t)mfgData[1] << 8) | (uint8_t)mfgData[0];
+        output += "  Company ID: " + getCompanyName(companyId) + "\n";
+      }
+      
+      output += "  Data: " + hexString((uint8_t*)mfgData.c_str(), mfgData.length()) + "\n";
+    }
+    
+    // Print service UUIDs
+    if(device.haveServiceUUID()) {
+      output += "\nService UUIDs: ['" + String(device.getServiceUUID().toString().c_str()) + "']\n";
+    }
+    
+    // Print service data if available
+    if(device.haveServiceData()) {
+      std::string svcData = device.getServiceData();
+      BLEUUID svcUUID = device.getServiceDataUUID();
+      output += "\nService Data:\n";
+      output += "  UUID: " + String(svcUUID.toString().c_str()) + "\n";
+      output += "  Data: " + hexString((uint8_t*)svcData.c_str(), svcData.length()) + "\n";
+    }
+    
+    // Print local name if different from advertised name
+    if(device.haveName()) {
+      output += "\nLocal Name: " + String(device.getName().c_str()) + "\n";
+    }
+    
+    output += "======================================================================\n";
+    
+    Serial.print(output);
   }
 };
 
-// Global callback instance
-PrintAllCallbacks callbacks;
+MetaDetectionCallbacks callbacks;
+
+// ========== SETUP ==========
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);  // Give serial time to initialize
+  delay(1000);
   
-  Serial.println("\n===========================================");
-  Serial.println("Meta Ray-Ban BLE Scanner");
-  Serial.println("===========================================");
-  Serial.println("Scanning for ALL BLE devices...");
-  Serial.println("Will mute output if Meta/Luxottica device detected\n");
-
+  // Configure detection pin
+  pinMode(DETECTION_PIN, OUTPUT);
+  digitalWrite(DETECTION_PIN, LOW);
+  
+  sessionStartTime = millis();
+  
+  Serial.println("\n======================================================================");
+  Serial.println("BLE Scanner - Detecting Meta Ray-Ban Smart Glasses");
+  Serial.println("======================================================================");
+  Serial.print("RSSI Threshold: ");
+  Serial.print(RSSI_THRESHOLD);
+  Serial.println(" dBm (showing devices stronger than this)");
+  
+  Serial.print("Monitoring for Meta identifiers: ");
+  for(int i = 0; i < META_ID_COUNT; i++) {
+    Serial.printf("0x%04X", META_IDENTIFIERS[i]);
+    if(i < META_ID_COUNT - 1) Serial.print(", ");
+  }
+  Serial.println();
+  
+  Serial.print("Blocking: ");
+  for(int i = 0; i < BLOCKED_ID_COUNT; i++) {
+    Serial.printf("0x%04X", BLOCKED_IDENTIFIERS[i]);
+    if(i < BLOCKED_ID_COUNT - 1) Serial.print(", ");
+  }
+  Serial.println(" (Samsung)");
+  
+  Serial.print("Detection Pin: GPIO ");
+  Serial.println(DETECTION_PIN);
+  
+  Serial.println("\n======================================================================");
+  Serial.print("NEW SCAN SESSION - ");
+  Serial.println(formatTimestamp());
+  Serial.println("======================================================================");
+  Serial.println("\nScanning...\n");
+  
+  // Initialize BLE
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan();
   pBLEScan->setAdvertisedDeviceCallbacks(&callbacks);
-
   pBLEScan->setActiveScan(true);
   pBLEScan->setInterval(100);
   pBLEScan->setWindow(99);
 }
 
+// ========== LOOP ==========
+
 void loop() {
-  pBLEScan->start(scanTime, false);
-  pBLEScan->clearResults();
+  // Reset detection pin at start of each scan
+  digitalWrite(DETECTION_PIN, LOW);
   
-  // Optional: Show status if Meta device detected
-  if (metaFound && (millis() - firstDetectionTime) % 10000 < 100) {
-    Serial.println("[Status: Meta device detected - output muted]");
-  }
+  // Scan for devices
+  BLEScanResults foundDevices = pBLEScan->start(SCAN_TIME, false);
+  pBLEScan->clearResults();
   
   delay(50);
 }
