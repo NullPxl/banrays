@@ -8,10 +8,10 @@ from scipy.signal import find_peaks
 # -------------------------------------------------------------------
 # CONFIG
 # -------------------------------------------------------------------
-CSV_FILE = "./logs/ir_log.csv"  # your logged data (columns: ms, diff)
+CSV_FILE = "./logs/ir_log_2cam_2cov_2camrec_2camreccov.csv"  # your logged data (columns: ms, diff)
 
 # Heuristic thresholds (tune these!)
-HEIGHT_MIN   = 10.0   # minimum height above local baseline to count as "strong"
+HEIGHT_MIN   = 5.0   # minimum height above local baseline to count as "strong"
 WIDTH_MAX_MS = 180.0  # maximum FWHM width (camera spikes are narrow)
 RISE_MIN     = 0.15    # minimum rise slope (diff units per ms)
 FALL_MIN     = 0.15   # minimum fall slope magnitude

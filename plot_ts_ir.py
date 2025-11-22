@@ -9,7 +9,8 @@ def main():
     plt.figure(figsize=(12, 5))
     plt.plot(df["ms"], df["diff"], linewidth=1)
 
-    plt.title("IR Differential Reflection Waveform")
+    plt.title("IR Reflection Testing")
+
     plt.xlabel("Time (ms)")
     plt.ylabel("diff (lit - dark)")
 

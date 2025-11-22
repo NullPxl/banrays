@@ -1,4 +1,7 @@
 logs/bt_log*.txt
+logs/ir_log_l*.csv
+logs/ir_log_2x*.csv
+logs/ir_log_cam*.csv
 bt_monitor/scratch.txt
 bt_monitor/rayban_ble_log.txt
 .vscode/

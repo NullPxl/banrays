@@ -1,15 +1,19 @@
 # Ban-Rays
 **Glasses that detect hidden cameras in other smart glasses**
 
-I'm planning to use 2 main approaches: optics and networking
-* With optics, the goal will be to classify all cameras by looking at light reflections.
-* With networking, I'll likely be looking for specific, hardcoded identifiers for relevant products in bluetooth packets. 
+I'm planning to use 2 main approaches:
+* [Optics](#optics): classify the camera using light reflections.
+* [Networking](#networking): bluetooth and wi-fi analysis. (so far this is seeming much more likely to work well)
+
+I'm essentially treating this README like a logbook, so it will have my current approaches/ideas.
 
 ## Optics
 
 By sending IR at camera lenses, we can take advantage of the fact that the CMOS sensor in a camera reflects light directly back at the source (called 'retro-reflectivity' / 'cat-eye effect') to identify cameras.
 
-To my dissapointment, this isn't exactly a new idea. Some researchers in 2005 used this property to create 'capture-resistant environments' when smartphones with cameras were gaining popularity. 
+![](irrb.jpg)
+
+This isn't exactly a new idea. Some researchers in 2005 used this property to create 'capture-resistant environments' when smartphones with cameras were gaining popularity. 
 * https://homes.cs.washington.edu/~shwetak/papers/cre.pdf
 
 There's even some recent research (2024) that figured out how to classify individual cameras based on their retro-reflections.
@@ -23,19 +27,30 @@ I would feel pretty silly if my solution uses its own camera. So I'll be avoidin
 
 ![](ts_plot_spikes.png)
 
-Right now the spike / camera-like detection is super dependent on the consistensy of 'scans'. If you looks across a reflective object quickly, the slope might be enough to classify as a small camera spike.
+After getting to test some Meta Raybans, I found that this setup is not going to be sufficient. Here's a test of some sweeps of the camera-area + the same area when the lens is covered. You can see the waveform is similar to what I saw in the earlier test (short spike for camera, wider otherwise), but it's wildly inconsistent and the strength of the signal is very weak. This was from about 4 inches away from the LEDs. I didn't notice much difference when swapping between 940nm and 850nm LEDs.
+
+![](ir_rayban_first_sweeps.png)
+
+So at least with current hardware that's easy for me to access, this probably isn't enough to differentiate accurately.
+
+Another idea I had is to create a designated sweep 'pattern'. The user (wearing the detector glasses) would perform a specific scan pattern of the target. Using the waveforms captured from this data, maybe we can more accurately fingerprint the raybans. For example, sweeping across the targets glasses in a 'left, right, up, down' approach. I tested this by comparing the results of the Meta raybans vs some aviators I had lying around. I think the idea behind this approach is sound, but it might need more workshopping.
+
+![](ir_rayban_sweeping_pattern.png)
 
 ### IR Circuit
 
 For prototyping, I'm using:
 * Arduino uno
-* a bunch of 940nm and 850nm IR LEDs (the 850nm ones appear to reflect much more) 
+* a bunch of 940nm and 850nm IR LEDs
 * a photodiode as a receiver
 * a 2222A transistor
 
 ![](basicsetup.jpg)
 
-I still need to experiment with how different wavelengths effect results here.
+TODO:
+* experiment with sweeping patterns
+* experiment with combining data from different wavelengths
+* collimation?
 
 ## Networking
 
@@ -62,7 +77,7 @@ Service UUIDs: ['0000fd5f-0000-1000-8000-00805f9b34fb']
 
 IEEE assigns certain MAC address prefixes (OUI, 'Organizationally Unique Identifier'), but these addresses get randomized so I don't expect them to be super useful for BLE.
 
-There are also SIG Assigned Service UUIDs, for examplel 0xFD5F is assigned to Meta. This is probably a proprietary service. Maybe useful.
+There are also SIG Assigned Service UUIDs, for example `0xFD5F` is assigned to Meta. This is probably a proprietary service. Maybe useful.
 
 Here's some links to more data if you're curious:
 * https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/Assigned_Numbers.pdf
