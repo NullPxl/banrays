@@ -33,7 +33,7 @@ After getting to test some Meta Raybans, I found that this setup is not going to
 
 So at least with current hardware that's easy for me to access, this probably isn't enough to differentiate accurately.
 
-Another idea I had is to create a designated sweep 'pattern'. The user (wearing the detector glasses) would perform a specific scan pattern of the target. Using the waveforms captured from this data, maybe we can more accurately fingerprint the raybans. For example, sweeping across the targets glasses in a 'left, right, up, down' approach. I tested this by comparing the results of the Meta raybans vs some aviators I had lying around. I think the idea behind this approach is sound, but it might need more workshopping.
+Another idea I had is to create a designated sweep 'pattern'. The user (wearing the detector glasses) would perform a specific scan pattern of the target. Using the waveforms captured from this data, maybe we can more accurately fingerprint the raybans. For example, sweeping across the targets glasses in a 'left, right, up, down' approach. I tested this by comparing the results of the Meta raybans vs some aviators I had lying around. I think the idea behind this approach is sound (actually it's light), but it might need more workshopping.
 
 ![](ir_rayban_sweeping_pattern.png)
 
