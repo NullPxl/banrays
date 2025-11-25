@@ -3,10 +3,15 @@
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
 
+#include "zelda_secret.h"
+
 // ========== CONFIGURATION ==========
 const int RSSI_THRESHOLD = -150;        // Only show devices stronger than this
 const int DETECTION_PIN = 13;
 const int SCAN_TIME = 5;               // Scan duration in seconds
+
+unsigned long lastSoundTime = 0;
+const unsigned long SOUND_COOLDOWN = 30000;  // 30 seconds in milliseconds
 
 // Meta and Luxottica company identifiers
 const uint16_t META_IDENTIFIERS[] = {
@@ -15,9 +20,11 @@ const uint16_t META_IDENTIFIERS[] = {
   0xFEB8,  // Meta (0xFEB8)
   0x01AB,  // Meta (0x01AB)
   0x058E,  // Meta (0x058E)
-  0x0D53   // Luxottica (0x0D53)
+  0x0D53,   // Luxottica (0x0D53)
+
+  0xFEF3 // my phone (for testing to trigger)
 };
-const int META_ID_COUNT = 6;
+const int META_ID_COUNT = 7;
 
 // MAC addresses are randomized, so not checking OUI here (maybe do it for BTC)
     // mac.rfind("48:05:60", 0) == 0 ||
@@ -43,9 +50,9 @@ const uint16_t BLOCKED_IDENTIFIERS[] = {
   0xFD69,   // Samsung
   0x004C, //apple
   0x0006, // microsoft
-  0xFEF3, // phone
+  // 0xFEF3, // phone
 };
-const int BLOCKED_ID_COUNT = 5;
+const int BLOCKED_ID_COUNT = 4;
 
 // ========== GLOBALS ==========
 BLEScan* pBLEScan;
@@ -146,10 +153,32 @@ DetectionResult checkDevice(BLEAdvertisedDevice& device) {
     }
   }
   
-  // Check service UUIDs
+  // Check service UUIDs (loop through all)
   if(device.haveServiceUUID()) {
-    BLEUUID serviceUUID = device.getServiceUUID();
-    String uuidStr = String(serviceUUID.toString().c_str());
+    for(int i = 0; i < device.getServiceUUIDCount(); i++) {
+      BLEUUID serviceUUID = device.getServiceUUID(i);
+      String uuidStr = String(serviceUUID.toString().c_str());
+      uuidStr.toLowerCase();
+      
+      uint16_t identifier = extract16BitFromUUID(uuidStr);
+      if(identifier != 0) {
+        if(isBlockedIdentifier(identifier)) {
+          result.isBlocked = true;
+          return result;
+        }
+        
+        if(isMetaIdentifier(identifier)) {
+          result.isMetaDevice = true;
+          result.matches[result.matchCount++] = "Service UUID: " + getCompanyName(identifier) + " (" + uuidStr + ")";
+        }
+      }
+    }
+  }
+
+  // Check service data UUID
+  if(device.haveServiceData()) {
+    BLEUUID svcDataUUID = device.getServiceDataUUID();
+    String uuidStr = String(svcDataUUID.toString().c_str());
     uuidStr.toLowerCase();
     
     uint16_t identifier = extract16BitFromUUID(uuidStr);
@@ -161,7 +190,7 @@ DetectionResult checkDevice(BLEAdvertisedDevice& device) {
       
       if(isMetaIdentifier(identifier)) {
         result.isMetaDevice = true;
-        result.matches[result.matchCount++] = "Service UUID: " + getCompanyName(identifier) + " (" + uuidStr + ")";
+        result.matches[result.matchCount++] = "Service Data UUID: " + getCompanyName(identifier) + " (" + uuidStr + ")";
       }
     }
   }
@@ -196,8 +225,20 @@ class MetaDetectionCallbacks : public BLEAdvertisedDeviceCallbacks {
         output += "  ✓ " + detection.matches[i] + "\n";
       }
       
-      // Set detection pin HIGH
+      // alert user
+      
       digitalWrite(DETECTION_PIN, HIGH);
+      // play sound only if cooldown has elapsed
+      unsigned long currentTime = millis();
+      if (lastSoundTime == 0 || currentTime - lastSoundTime >= SOUND_COOLDOWN) {
+        zeldaSecret();
+        lastSoundTime = currentTime;
+        output += "  🔊 Playing alert sound\n";
+      } else {
+        unsigned long remaining = (SOUND_COOLDOWN - (currentTime - lastSoundTime)) / 1000;
+        output += "  🔇 Sound on cooldown (" + String(remaining) + "s remaining)\n";
+      }
+
     }
     
     // Print manufacturer data
@@ -215,7 +256,15 @@ class MetaDetectionCallbacks : public BLEAdvertisedDeviceCallbacks {
     
     // Print service UUIDs
     if(device.haveServiceUUID()) {
-      output += "\nService UUIDs: ['" + String(device.getServiceUUID().toString().c_str()) + "']\n";
+      output += "\nService UUIDs: [";
+      for(int i = 0; i < device.getServiceUUIDCount(); i++) {
+        BLEUUID serviceUUID = device.getServiceUUID(i);
+        output += "'" + String(serviceUUID.toString().c_str()) + "'";
+        if(i < device.getServiceUUIDCount() - 1) {
+          output += ", ";
+        }
+      }
+      output += "]\n";
     }
     
     // Print service data if available
@@ -244,6 +293,8 @@ MetaDetectionCallbacks callbacks;
 
 void setup() {
   Serial.begin(115200);
+  setupZeldaSound();   // initialize LEDC for buzzer
+
   delay(1000);
   
   // Configure detection pin

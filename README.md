@@ -1,9 +1,11 @@
 # Ban-Rays
 **Glasses that detect hidden cameras in other smart glasses**
 
-I'm planning to use 2 main approaches:
+I'm experimenting with 2 main approaches:
 * [Optics](#optics): classify the camera using light reflections.
-* [Networking](#networking): bluetooth and wi-fi analysis. (so far this is seeming much more likely to work well)
+* [Networking](#networking): bluetooth and wi-fi analysis.
+
+So far fingerprinting specific devices based on bluetooth (BLE) is looking like easiest and most reliable approach.
 
 I'm essentially treating this README like a logbook, so it will have my current approaches/ideas.
 
@@ -54,9 +56,17 @@ TODO:
 
 ## Networking
 
-This has been more tricky than I first thought! My current approach here is to fingerprint the Meta Raybans over Bluetooth low-energy (BLE) advertisements. But, **I have only been able to detect BLE traffic during 1) pairing 2) powering-on**. The goal is to detect them during usage when they're communicating with the paired phone, but that all seems to be happening over bluetooth classic. And unfortunately the hardware to monitor for ongoing bluetooth classic traffic seems a bit more involved (read: expensive). So I'll likely need a more clever solution here (let me know if you have any).
+This has been more tricky than I first thought! My current approach here is to fingerprint the Meta Raybans over Bluetooth low-energy (BLE) advertisements. But, **I have only been able to detect BLE traffic during 1) pairing 2) powering-on**. I sometimes also see the advertisement as they are taken out of the case (while already powered on), but not consistently. 
 
-When turned on or put into pairing mode, I can detect the device through advertised manufacturer data. The `0x01AB` is a Meta-specific SIG-assigned ID (assigned by the Bluetooth standards body).
+![](ble_detect.jpg)
+
+The goal is to detect them during usage when they're communicating with the paired phone, but to see this type of directed BLE traffic it seems like I would first need to see the `CONNECT_REQ` packet which has information as to what which of the communication channels to hop between in sync. I don't think what I currently have (ESP32) is set up to do this kind of following.
+* potentially can use an [nRF module](https://www.nordicsemi.com/Products/Development-tools/nRF-Sniffer-for-Bluetooth-LE) for this
+
+For any of the bluetooth classic (BTC) traffic, unfortunately the hardware seems a bit more involved (read: expensive). So if I want to do down this route, I'll likely need a more clever solution here.
+
+When turned on or put into pairing mode (or sometimes when taken out of the case), I can detect the device through advertised manufacturer data and service UUIDs. `0x01AB` is a Meta-specific SIG-assigned ID (assigned by the Bluetooth standards body), and `0xFD5F` in the Service UUID is assigned to Meta as well.
+
 
 capture when the glasses are powered on:
 ```
@@ -76,8 +86,6 @@ Service UUIDs: ['0000fd5f-0000-1000-8000-00805f9b34fb']
 ```
 
 IEEE assigns certain MAC address prefixes (OUI, 'Organizationally Unique Identifier'), but these addresses get randomized so I don't expect them to be super useful for BLE.
-
-There are also SIG Assigned Service UUIDs, for example `0xFD5F` is assigned to Meta. This is probably a proprietary service. Maybe useful.
 
 Here's some links to more data if you're curious:
 * https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/Assigned_Numbers.pdf
