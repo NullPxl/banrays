@@ -5,7 +5,9 @@ I'm experimenting with 2 main approaches:
 * [Optics](#optics): classify the camera using light reflections.
 * [Networking](#networking): bluetooth and wi-fi analysis.
 
-So far fingerprinting specific devices based on bluetooth (BLE) is looking like easiest and most reliable approach.
+So far fingerprinting specific devices based on bluetooth (BLE) is looking like easiest and most reliable approach. The picture below is the first version, which plays the legend of zelda 'secret found' jingle when it detects a BLE advertisement from Meta Raybans.
+
+![](banrays_physical_v1.png)
 
 I'm essentially treating this README like a logbook, so it will have my current approaches/ideas.
 
