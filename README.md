@@ -1,5 +1,5 @@
 # Ban-Rays
-**Glasses that detect hidden cameras in other smart glasses**
+**Glasses to detect smart-glasses that have cameras**
 
 I'm experimenting with 2 main approaches:
 * [Optics](#optics): classify the camera using light reflections.
