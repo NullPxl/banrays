@@ -51,10 +51,12 @@ For prototyping, I'm using:
 
 ![](basicsetup.jpg)
 
-TODO:
+IR TODOs:
 * experiment with sweeping patterns
-* experiment with combining data from different wavelengths
+* focus on spectral info, try combining data from a few different wavelengths
 * collimation?
+
+* trevor (author of the camera classification paper) mentioned back in november that if the glasses have LiDAR i could just look for those pulses. the ray-bans don't seem to have this, but other smart glasses might. this blog posted in december has some cool research on detecting iphone cameras with this approach: https://www.atredis.com/blog/2025/11/20/designing-a-passive-lidar-detection-sensor
 
 ## Networking
 
@@ -62,13 +64,21 @@ This has been more tricky than I first thought! My current approach here is to f
 
 ![](ble_detect.jpg)
 
-The goal is to detect them during usage when they're communicating with the paired phone, but to see this type of directed BLE traffic it seems like I would first need to see the `CONNECT_REQ` packet which has information as to what which of the communication channels to hop between in sync. I don't think what I currently have (ESP32) is set up to do this kind of following.
-* potentially can use an [nRF module](https://www.nordicsemi.com/Products/Development-tools/nRF-Sniffer-for-Bluetooth-LE) for this
+The goal is to detect them during usage when they're communicating with the paired phone, but to see this type of directed BLE traffic I would first need to see the `CONNECT_REQ` packet which has information as to what which of the communication channels to hop between in sync (hop interval, hop increment). This can be done with an [nRF52840 + the ble-sniffer firmware](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/lessons/lesson-6-bluetooth-le-sniffer/topic/nrf-sniffer-for-bluetooth-le/), but it doesn't negate the fact that **you still need to see that initial connection to start sniffing**. 
+
+A bit more background on BLE:
+* operates over 40 channels, 3 of which are dedicated just for advertising while the others are for actual data. 
+* modern devices (like the meta ray-bans) have randomized public MAC addresses for privacy. Even though IEEE assigns certain MAC address prefixes (OUI, 'Organizationally Unique Identifier'), the randomization means this doesn't appear to be useful for detection. 
+* to follow a conversation on the data channels, you need to have observed the initial connection request packet with has required info in it
+* the advertising data contains good stuff, but isn't necessarily sent out super often. when extended advertising is used to get a bigger payload size, the other channels can be used for it. 
+* https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/lessons/lesson-2-bluetooth-le-advertising/topic/advertisement-packet/
+* you can send a SCAN_REQ to devices that are advertising and they (can choose to) respond with more data about themselves ('active scanning')
+
+When turned on or put into pairing mode (or sometimes when taken out of the case), I can detect the device through advertised manufacturer data and service UUIDs. These are parts of the advertising data.
+`0x01AB` is a Meta-specific SIG-assigned ID (assigned by the Bluetooth standards body), and `0xFD5F` in the Service UUID is assigned to Meta as well. In the code you can see the other numbers I'm using for fingerprinting.
+* https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/Assigned_Numbers.pdf
 
 For any of the bluetooth classic (BTC) traffic, unfortunately the hardware seems a bit more involved (read: expensive). So if I want to do down this route, I'll likely need a more clever solution here.
-
-When turned on or put into pairing mode (or sometimes when taken out of the case), I can detect the device through advertised manufacturer data and service UUIDs. `0x01AB` is a Meta-specific SIG-assigned ID (assigned by the Bluetooth standards body), and `0xFD5F` in the Service UUID is assigned to Meta as well.
-
 
 capture when the glasses are powered on:
 ```
@@ -87,18 +97,31 @@ Manufacturer Data:
 Service UUIDs: ['0000fd5f-0000-1000-8000-00805f9b34fb']
 ```
 
-IEEE assigns certain MAC address prefixes (OUI, 'Organizationally Unique Identifier'), but these addresses get randomized so I don't expect them to be super useful for BLE.
+NETWORKING TODOs:
+* Read: https://dl.acm.org/doi/10.1145/3548606.3559372 and any other recent papers 
+* Wi-Fi direct stuff with esp32
+* see if the nrf52840 sees anything on adv that the esp32 doesn't. 
+  * I bought the chip (xiao nrf52840) to test out sniffing, but I should've just got the dongle or a dev-kit. the nordic ble-sniffer firmware isn't made for it so it's taking some more effort.
+* will phones advertise more often and show specific services? anything the phone might do differently when paired to an active device that i can use as a side channel?
+* read more into the PHY modes
 
-Here's some links to more data if you're curious:
-* https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/Assigned_Numbers.pdf
-* https://gitlab.com/wireshark/wireshark/-/blob/99df5f588b38cc0964f998a6a292e81c7dcf0800/epan/dissectors/packet-bluetooth.c
-* https://www.netify.ai/resources/macs/brands/meta
+---
 
-
-TODO:
-* Read: https://dl.acm.org/doi/10.1145/3548606.3559372
-* try active probing/interrogating
+NOTE: ray-bans that i was using for testing are currently unavailable so i'm a bit blocked :(
 
 ---
 
 Thanks to Trevor Seets and Junming Chen for their advice in optics and BLE (respectively). Also to Sohail for lending me meta raybans to test with. 
+
+---
+
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
+
+This work is licensed under a
+[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
+
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
+
+[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
+[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
+[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
