@@ -336,7 +336,7 @@ void setup() {
   // Initialize BLE
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan();
-  pBLEScan->setAdvertisedDeviceCallbacks(&callbacks);
+  pBLEScan->setAdvertisedDeviceCallbacks(&callbacks, true);
   pBLEScan->setActiveScan(true);
   pBLEScan->setInterval(100);
   pBLEScan->setWindow(99);

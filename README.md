@@ -11,6 +11,9 @@ So far fingerprinting specific devices based on bluetooth (BLE) is looking like 
 
 I'm essentially treating this README like a logbook, so it will have my current approaches/ideas.
 
+![](atelier_showcase.jpg)
+Back when I released this initial research around November 2025 it hit top of hackernews and got some nice tweets! I also got to show it to some cool people at Atelier Showcase.
+
 ## Optics
 
 By sending IR at camera lenses, we can take advantage of the fact that the CMOS sensor in a camera reflects light directly back at the source (called 'retro-reflectivity' / 'cat-eye effect') to identify cameras.
